@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo List</title>
+    <link rel="stylesheet" href="static/style.css">
+</head>
+
+<body>
+    <h1>Todo List</h1>
+    <div id="welcome-message"></div>
+    <form id="todo-form">
+        <input type="text" id="title" placeholder="Title" required>
+        <input type="text" id="description" placeholder="Description">
+        <button type="submit">Add Todo</button>
+    </form>
+    <ul id="todo-list"></ul>
+
+    <script>
+        const API_URL = 'http://localhost:8000';
+
+        async function fetchWelcomeMessage() {
+            const response = await fetch(`${API_URL}/`);
+            const data = await response.json();
+            document.getElementById('welcome-message').textContent = data.message;
+        }
+
+        async function fetchTodos() {
+            const response = await fetch(`${API_URL}/todos`);
+            const todos = await response.json();
+            const todoList = document.getElementById('todo-list');
+            todoList.innerHTML = '';
+            todos.forEach(todo => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <div class="todo-item">
+                        <input type="checkbox" ${todo.completed ? 'checked' : ''} onchange="updateTodo(${todo.id}, this.checked)">
+                        <span>${todo.title}</span>
+                        <button class="view" onclick="viewTodo(${todo.id})">View</button>
+                        <button class="edit" onclick="editTodo(${todo.id})">Edit</button>
+                        <button class="delete" onclick="deleteTodo(${todo.id})">Delete</button>
+                    </div>
+                `;
+                todoList.appendChild(li);
+            });
+        }
+
+        async function addTodo(event) {
+            event.preventDefault();
+            const title = document.getElementById('title').value;
+            const description = document.getElementById('description').value;
+            await fetch(`${API_URL}/todos`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title, description })
+            });
+            document.getElementById('title').value = '';
+            document.getElementById('description').value = '';
+            fetchTodos();
+        }
+
+        async function viewTodo(id) {
+            const response = await fetch(`${API_URL}/todos/${id}`);
+            const todo = await response.json();
+            alert(`Title: ${todo.title}\nDescription: ${todo.description}\nCompleted: ${todo.completed}`);
+        }
+
+        async function editTodo(id) {
+            const response = await fetch(`${API_URL}/todos/${id}`);
+            const todo = await response.json();
+            const newTitle = prompt("Enter new title:", todo.title);
+            const newDescription = prompt("Enter new description:", todo.description);
+            const newCompleted = confirm("Is the todo completed?");
+
+            if (newTitle !== null && newDescription !== null) {
+                await fetch(`${API_URL}/todos/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title: newTitle,
+                        description: newDescription,
+                        completed: newCompleted
+                    })
+                });
+                fetchTodos();
+            }
+        }
+
+        async function updateTodo(id, completed) {
+            const response = await fetch(`${API_URL}/todos/${id}`);
+            const todo = await response.json();
+            await fetch(`${API_URL}/todos/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...todo, completed: completed })
+            });
+            fetchTodos();
+        }
+
+        async function deleteTodo(id) {
+            if (confirm("Are you sure you want to delete this todo?")) {
+                await fetch(`${API_URL}/todos/${id}`, { method: 'DELETE' });
+                fetchTodos();
+            }
+        }
+
+        document.getElementById('todo-form').addEventListener('submit', addTodo);
+        fetchWelcomeMessage();
+        fetchTodos();
+    </script>
+</body>
+
+</html>

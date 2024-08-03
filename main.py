@@ -1,20 +1,36 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel, Field
 from typing import List, Optional
 
 app = FastAPI()
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
+
 class Todo(BaseModel):
     id: Optional[int] = None
-    title: str
-    description: str = ""
+    title: str = Field(..., max_length=100)
+    description: str = Field(default="", max_length=300)
     completed: bool = False
 
 todos = []
 
-@app.get("/")
-async def root():
-    return {"message": "Welcome, this is the Todo List API"}
+@app.get("/", response_class=HTMLResponse)
+async def read_root(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
 @app.post("/todos", response_model=Todo)
 async def create_todo(todo: Todo):
